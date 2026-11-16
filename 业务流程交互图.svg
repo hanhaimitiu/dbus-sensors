@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 860" font-family="'Segoe UI','Microsoft YaHei',sans-serif">
+  <style>
+    .panel{fill:#ffffff;stroke:#d8d2c7;stroke-width:1.5;}
+    .phead{fill:#ece7df;stroke:#d8d2c7;stroke-width:1.5;}
+    .ptitle{fill:#2d2a27;font-size:15px;font-weight:700;}
+    .box{fill:#ffffff;stroke:#3f6b78;stroke-width:1.5;rx:6;}
+    .bbox{fill:#e3ecee;stroke:#3f6b78;stroke-width:1.5;rx:6;}
+    .bmain{fill:#2d2a27;font-size:13px;font-weight:600;}
+    .bsub{fill:#5c5650;font-size:11px;}
+    .arrow{stroke:#3f6b78;stroke-width:1.8;fill:none;}
+    .anum{fill:#3f6b78;font-size:12px;font-weight:700;}
+    .acc{fill:#3f6b78;font-size:12.5px;font-weight:700;}
+    .note{fill:#a86a4c;font-size:11.5px;}
+    .nest{fill:#f4f1ea;stroke:#c9c2b6;stroke-width:1.2;rx:6;}
+    .nl{fill:#5c5650;font-size:11px;}
+    .nlh{fill:#2d2a27;font-size:11.5px;font-weight:700;}
+    .ttl{fill:#2d2a27;font-size:17px;font-weight:700;}
+    .role{fill:#5c5650;font-size:12px;}
+  </style>
+
+  <text x="380" y="30" text-anchor="middle" class="ttl">dbus-sensors</text>
+  <text x="380" y="50" text-anchor="middle" class="role">传感器数据采集 · hwmon/IIO 数据 + entity-manager 配置 → D-Bus Sensor.Value</text>
+
+  <!-- Panel A 业务流程 -->
+  <rect class="panel" x="20" y="64" width="720" height="390" rx="6"/>
+  <rect class="phead" x="20" y="64" width="720" height="32" rx="6"/>
+  <text x="34" y="86" class="ptitle">一、业务流程：温度冲到 91℃ 如何变成一条告警</text>
+
+  <rect class="box" x="90" y="102" width="580" height="48" rx="6"/>
+  <text x="110" y="121" class="bmain">① entity-manager Configuration.* → GetSubTree + GetAll 拉取阈值配置</text>
+  <text x="110" y="138" class="bsub">src/Utils.hpp:310-382, 274-307；解析 src/Thresholds.cpp:56-109</text>
+
+  <line class="arrow" x1="380" y1="150" x2="380" y2="164"/>
+  <polygon points="372,162 388,162 380,174" fill="#3f6b78"/>
+
+  <rect class="box" x="90" y="174" width="580" height="48" rx="6"/>
+  <text x="110" y="193" class="bmain">② 按 (bus, addr) 配对 hwmon temp*_input / IIO in_temp*_raw</text>
+  <text x="110" y="210" class="bsub">src/hwmon-temp/HwmonTempMain.cpp:293-348（fan/psu 用 Index/label）</text>
+
+  <line class="arrow" x1="380" y1="222" x2="380" y2="236"/>
+  <polygon points="372,234 388,234 380,246" fill="#3f6b78"/>
+
+  <rect class="box" x="90" y="246" width="580" height="48" rx="6"/>
+  <text x="110" y="265" class="bmain">③ setupRead 每 0.5s 异步读 sysfs → (raw+offset)*scale → updateValue</text>
+  <text x="110" y="282" class="bsub">src/hwmon-temp/HwmonTempSensor.cpp:189-197；src/sensor.hpp:498-532</text>
+
+  <line class="arrow" x1="380" y1="294" x2="380" y2="308"/>
+  <polygon points="372,306 388,306 380,318" fill="#3f6b78"/>
+
+  <rect class="box" x="90" y="318" width="580" height="48" rx="6"/>
+  <text x="110" y="337" class="bmain">④ checkThresholds 施密特判断：v≥90℃ 置 true，v&lt;90-h 才回 false</text>
+  <text x="110" y="354" class="bsub">src/Thresholds.cpp:253, 268-291；h=(max-min)*0.01 src/sensor.hpp:89</text>
+
+  <line class="arrow" x1="380" y1="366" x2="380" y2="380"/>
+  <polygon points="372,378 388,378 380,390" fill="#3f6b78"/>
+
+  <rect class="bbox" x="90" y="390" width="580" height="48" rx="6"/>
+  <text x="110" y="409" class="bmain">⑤ 置 CriticalAlarmHigh=true → 发 ThresholdAsserted 给 phosphor-logging</text>
+  <text x="110" y="426" class="bsub">src/Thresholds.cpp:468, 473-478；告警判定在本仓库，记录交下游</text>
+
+  <!-- Panel B 代码体系结构 -->
+  <rect class="panel" x="20" y="470" width="720" height="208" rx="6"/>
+  <rect class="phead" x="20" y="470" width="720" height="32" rx="6"/>
+  <text x="34" y="492" class="ptitle">二、代码体系结构：一组独立 daemon + 公共基类 Sensor</text>
+
+  <rect class="nest" x="56" y="512" width="372" height="156" rx="6"/>
+  <text x="70" y="530" class="nlh">独立进程：adc / fan / temp / psu 各一个 daemon</text>
+  <text x="70" y="548" class="nl">xyz.openbmc_project.ADCSensor / FanSensor / ...</text>
+  <text x="70" y="566" class="nl">公共基类 Sensor：模板方法 src/sensor.hpp:68</text>
+
+  <rect class="nest" x="70" y="578" width="344" height="80" rx="6"/>
+  <text x="84" y="596" class="nlh">updateValue() src/sensor.hpp:498-532</text>
+  <text x="84" y="614" class="nl">写 Value → PropertiesChanged → checkThresholds()</text>
+  <text x="84" y="632" class="nl">checkThresholds() 纯虚，子类实现（:94）</text>
+  <text x="84" y="650" class="nl">滞回 h=(max-min)*0.01（:89-90）</text>
+
+  <text x="446" y="518" class="nlh">六个机制要点：</text>
+  <text x="446" y="536" class="nl">· 发现：Index | (bus,addr) | label</text>
+  <text x="446" y="552" class="nl">  adc/fan: Index；temp: I2C 地址</text>
+  <text x="446" y="568" class="nl">· 轮询：setupRead → handleResponse</text>
+  <text x="446" y="584" class="nl">  → restartRead（steady_timer 0.5s）</text>
+  <text x="446" y="600" class="nl">· debounce：filterTimer 1s / psu 3s</text>
+  <text x="446" y="616" class="nl">  src/fan/FanMain.cpp:682-697</text>
+  <text x="446" y="632" class="nl">· 阈值：普通 / 电源延迟两版</text>
+  <text x="446" y="648" class="nl">  src/Thresholds.cpp:253, 410-447</text>
+  <text x="446" y="664" class="nl">· 发布：add_interface + register_property</text>
+
+  <!-- Panel C 对外交互 -->
+  <rect class="panel" x="20" y="690" width="720" height="156" rx="6"/>
+  <rect class="phead" x="20" y="690" width="720" height="32" rx="6"/>
+  <text x="34" y="712" class="ptitle">三、对外 D-Bus 交互</text>
+
+  <text x="40" y="738" class="acc">入站（被谁调）：</text>
+  <text x="40" y="756" class="nl">· entity-manager 的 Configuration.* 对象</text>
+  <text x="40" y="772" class="nl">  GetSubTree → GetAll（src/Utils.hpp:310-382）</text>
+  <text x="40" y="788" class="nl">  变更订阅 PropertiesChanged / InterfacesAdded</text>
+  <text x="40" y="804" class="nl">  → filterTimer 1s 防抖（src/fan/FanMain.cpp:682-697）</text>
+
+  <text x="386" y="738" class="acc">出站（发布 / 消费，README.md:40-43）：</text>
+  <text x="386" y="756" class="nl">· xyz.openbmc_project.Sensor.Value</text>
+  <text x="386" y="772" class="nl">  Unit/MaxValue/MinValue/Value（src/sensor.hpp:281-287）</text>
+  <text x="386" y="788" class="nl">· Threshold.* + Alarm*（src/sensor.hpp:291-338）</text>
+  <text x="386" y="804" class="nl">  ThresholdAsserted 信号（src/Thresholds.cpp:473-478）</text>
+  <text x="386" y="820" class="nl">→ bmcweb(Redfish) / ipmid(SDR) / phosphor-logging</text>
+  <text x="386" y="836" class="nl">对象路径 /xyz/openbmc_project/sensors/&lt;type&gt;/&lt;name&gt;</text>
+</svg>
